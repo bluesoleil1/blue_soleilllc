@@ -1,0 +1,50 @@
+{
+  "name": "blue-soleil-llc",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "DATABASE_URL='file:./prisma/dev.db' tsx server/dev-server.ts",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:setup:sqlite": "bash scripts/init-dev-db.sh",
+    "db:create-admin:sqlite": "bash scripts/create-admin-sqlite.sh",
+    "db:studio:sqlite": "cp prisma/schema.sqlite.prisma prisma/schema.prisma && DATABASE_URL='file:./prisma/dev.db' npx prisma studio",
+    "db:setup:postgres": "prisma generate && prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "postcss": "^8.4.32",
+    "prisma": "^5.7.0",
+    "tailwindcss": "^3.3.6",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3",
+    "vite": "^7.3.0"
+  }
+}

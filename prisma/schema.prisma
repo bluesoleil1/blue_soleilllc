@@ -1,0 +1,51 @@
+// SQLite schema for development
+// This file is used by the db:setup:sqlite script
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("USER") // SQLite: stored as string (USER or ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Booking {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String
+  phone       String
+  serviceType String   // SQLite: stored as string (TERM_LIFE, PERMANENT_LIFE, etc.)
+  message     String?
+  status      String   @default("PENDING") // SQLite: stored as string (PENDING, CONFIRMED, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+// Note: SQLite doesn't support enums, so we use strings
+// Valid values:
+// - User.role: "USER" or "ADMIN"
+// - Booking.serviceType: "TERM_LIFE", "PERMANENT_LIFE", "INDEX_UNIVERSAL_LIFE", "INDEX_ANNUITY"
+// - Booking.status: "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"
+
