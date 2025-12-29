@@ -56,3 +56,11 @@ Thumbs.db
 
 # Misc
 *.tsbuildinfo
+
+# System directories (should not be in project)
+.config/
+.local/
+.npm-global/
+.npm/
+.npmrc
+.wget-hsts
