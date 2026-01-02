@@ -49,7 +49,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error) {
     console.error('Login error:', error)
-    return res.status(500).json({ message: 'An error occurred' })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isDatabaseError = errorMessage.includes('DATABASE') || errorMessage.includes('Prisma') || errorMessage.includes('connection')
+    
+    return res.status(500).json({ 
+      message: isDatabaseError 
+        ? 'Database connection error. Please check DATABASE_URL environment variable.' 
+        : 'An error occurred during login',
+      error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    })
   } finally {
     await prisma.$disconnect()
   }
