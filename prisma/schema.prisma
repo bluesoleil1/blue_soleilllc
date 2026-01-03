@@ -1,13 +1,14 @@
-// SQLite schema for development
-// This file is used by the db:setup:sqlite script
+// Prisma schema - supports both SQLite (dev) and PostgreSQL (production)
+// For development: DATABASE_URL="file:./prisma/dev.db"
+// For production: DATABASE_URL="postgresql://..." (set in Vercel)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {

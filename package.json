@@ -16,7 +16,8 @@
     "db:setup:sqlite": "bash scripts/init-dev-db.sh",
     "db:create-admin:sqlite": "bash scripts/create-admin-sqlite.sh",
     "db:studio:sqlite": "cp prisma/schema.sqlite.prisma prisma/schema.prisma && DATABASE_URL='file:./prisma/dev.db' npx prisma studio",
-    "db:setup:postgres": "prisma generate && prisma db push"
+    "db:setup:postgres": "prisma generate && prisma db push",
+    "db:setup:production": "tsx scripts/setup-production-db.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.7.0",
