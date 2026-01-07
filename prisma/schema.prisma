@@ -44,6 +44,18 @@ model Contact {
   createdAt DateTime @default(now())
 }
 
+model Email {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  html      String
+  text      String?
+  sentBy    String   // User ID who sent the email
+  status    String   @default("SENT") // SENT, FAILED, PENDING
+  messageId String?  // External email service message ID
+  createdAt DateTime @default(now())
+}
+
 // Note: SQLite doesn't support enums, so we use strings
 // Valid values:
 // - User.role: "USER" or "ADMIN"

@@ -47,3 +47,15 @@ export interface Contact {
   message: string
   createdAt: string
 }
+
+export interface Email {
+  id: string
+  to: string
+  subject: string
+  html: string
+  text?: string
+  sentBy: string
+  status: string
+  messageId?: string
+  createdAt: string
+}

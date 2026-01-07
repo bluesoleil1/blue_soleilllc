@@ -97,3 +97,22 @@ export const contactApi = {
       method: 'DELETE',
     }),
 }
+
+// Email API
+export const emailApi = {
+  send: (data: {
+    to: string | string[]
+    subject: string
+    html: string
+    text?: string
+    replyTo?: string
+    cc?: string | string[]
+    bcc?: string | string[]
+  }) =>
+    apiRequest<{ success: boolean; messageId?: string; message: string }>('/email/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getAll: () => apiRequest<{ emails: any[] }>('/email'),
+}
