@@ -82,7 +82,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="input-modern"
-                placeholder="admin@bluesoleil.com"
+                placeholder="admin@bluesoleilfl.com"
               />
             </div>
 

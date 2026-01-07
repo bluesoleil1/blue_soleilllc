@@ -41,9 +41,11 @@ class EmailService {
   constructor() {
     // Server-side only - these won't be exposed to client
     this.apiKey = process.env.RESEND_API_KEY || ''
-    this.from = process.env.EMAIL_FROM || 'Blue Soleil LLC <info@bluesoleil.com>'
-    this.replyTo = process.env.EMAIL_REPLY_TO || 'info@bluesoleil.com'
-    this.adminEmail = process.env.ADMIN_EMAIL || 'admin@bluesoleil.com'
+    this.from = process.env.EMAIL_FROM || 'Blue Soleil LLC <info@bluesoleilfl.com>'
+    this.replyTo = process.env.EMAIL_REPLY_TO || 'info@bluesoleilfl.com'
+    // Use info@bluesoleilfl.com for receiving notifications
+    // admin@bluesoleilfl.com is only for login
+    this.adminEmail = process.env.EMAIL_REPLY_TO || process.env.ADMIN_EMAIL || 'info@bluesoleilfl.com'
     this.skipInDev = process.env.SKIP_EMAIL_IN_DEV === 'true' && process.env.NODE_ENV !== 'production'
   }
 
@@ -270,7 +272,7 @@ class EmailService {
               <p>If you have any immediate questions, please don't hesitate to contact us:</p>
               <ul>
                 <li>Phone: <a href="tel:7542653030">(754) 265-3030</a></li>
-                <li>Email: <a href="mailto:info@bluesoleil.com">info@bluesoleil.com</a></li>
+                <li>Email: <a href="mailto:info@bluesoleilfl.com">info@bluesoleilfl.com</a></li>
               </ul>
               <p style="text-align: center;">
                 <a href="https://bluesoleil.com" class="cta-button">Visit Our Website</a>

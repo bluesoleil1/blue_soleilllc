@@ -200,8 +200,8 @@ export default function Contact() {
                     </div>
                     <div>
                       <h3 className="font-bold text-xl text-gray-900 mb-2">Email</h3>
-                      <a href="mailto:info@bluesoleil.com" className="text-gray-700 hover:text-blue-soleil-navy font-semibold transition-colors">
-                        info@bluesoleil.com
+                      <a href="mailto:info@bluesoleilfl.com" className="text-gray-700 hover:text-blue-soleil-navy font-semibold transition-colors">
+                        info@bluesoleilfl.com
                       </a>
                     </div>
                   </div>

@@ -89,4 +89,11 @@ export const contactApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  getAll: () => apiRequest<{ contacts: any[] }>('/contact'),
+
+  delete: (id: string) =>
+    apiRequest<{ message: string }>(`/contact/${id}`, {
+      method: 'DELETE',
+    }),
 }

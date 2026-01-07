@@ -67,8 +67,8 @@ export default function Footer() {
                 <div className="bg-blue-soleil-gold/20 p-2 rounded-lg mr-3 group-hover:bg-blue-soleil-gold/30 transition-colors flex-shrink-0">
                   <Mail className="w-5 h-5 text-blue-soleil-gold" />
                 </div>
-                <a href="mailto:info@bluesoleil.com" className="text-gray-200 hover:text-blue-soleil-gold transition-colors font-semibold pt-1">
-                  info@bluesoleil.com
+                <a href="mailto:info@bluesoleilfl.com" className="text-gray-200 hover:text-blue-soleil-gold transition-colors font-semibold pt-1">
+                  info@bluesoleilfl.com
                 </a>
               </li>
             </ul>

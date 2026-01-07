@@ -3,11 +3,14 @@ import { ArrowRight } from 'lucide-react'
 export default function Map() {
   const address = '1381 NW 40th Ave, Lauderhill, FL 33313'
   const encodedAddress = encodeURIComponent(address)
-  const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY || ''
+  
+  // Use Google Maps embed URL that doesn't require API key
+  // This uses the standard Google Maps embed which works without API key
+  const mapUrl = `https://www.google.com/maps?q=${encodedAddress}&output=embed`
 
   return (
     <div className="w-full">
-      <div className="w-full h-96 rounded-2xl overflow-hidden shadow-large">
+      <div className="w-full h-96 rounded-2xl overflow-hidden shadow-large bg-gray-200">
         <iframe
           width="100%"
           height="100%"
@@ -15,9 +18,9 @@ export default function Map() {
           loading="lazy"
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
-          src={`https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodedAddress}`}
+          src={mapUrl}
           title="Blue Soleil LLC Location"
-          className="rounded-2xl"
+          className="rounded-2xl w-full h-full"
         />
       </div>
       <div className="mt-6 text-center p-6 bg-blue-soleil-light rounded-xl">
