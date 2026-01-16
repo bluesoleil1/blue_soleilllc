@@ -9,6 +9,15 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
+// Extend Request type to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { userId: string; email: string; role: string };
+    }
+  }
+}
+
 const app = express()
 const PORT = 3001
 
@@ -230,7 +239,95 @@ app.patch('/api/bookings/:id', async (req, res) => {
   }
 })
 
-// Contact route
+// Email sending function using Resend API
+async function sendEmail(data: {
+  to: string | string[]
+  subject: string
+  html: string
+  text?: string
+  replyTo?: string
+  cc?: string | string[]
+  bcc?: string | string[]
+}) {
+  const emailFrom = process.env.EMAIL_FROM || 'Blue Soleil LLC <info@bluesoleilfl.com>'
+  const replyTo = process.env.EMAIL_REPLY_TO || 'info@bluesoleilfl.com'
+  const resendApiKey = process.env.RESEND_API_KEY
+
+  if (!resendApiKey) {
+    console.warn('RESEND_API_KEY not configured, email will not be sent')
+    return { success: false, messageId: null }
+  }
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: emailFrom,
+        to: Array.isArray(data.to) ? data.to : [data.to],
+        subject: data.subject,
+        html: data.html,
+        text: data.text || data.html.replace(/<[^>]*>/g, ''),
+        reply_to: data.replyTo || replyTo,
+        cc: data.cc ? (Array.isArray(data.cc) ? data.cc : [data.cc]) : undefined,
+        bcc: data.bcc ? (Array.isArray(data.bcc) ? data.bcc : [data.bcc]) : undefined,
+      }),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to send email')
+    }
+
+    return { success: true, messageId: result.id }
+  } catch (error) {
+    console.error('Resend API error:', error)
+    throw error
+  }
+}
+
+// Helper function to verify admin authentication
+const authenticateAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Unauthorized' })
+    }
+
+    const token = authHeader.substring(7)
+    const jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-in-production'
+    const decoded = jwt.verify(token, jwtSecret) as { userId: string; role: string }
+
+    if (decoded.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'Forbidden: Admin access required' })
+    }
+
+    req.user = decoded
+    next()
+  } catch (error) {
+    return res.status(401).json({ message: 'Invalid or expired token' })
+  }
+}
+
+// Contact routes
+// GET /api/contact - Get all contact messages (admin only)
+app.get('/api/contact', authenticateAdmin, async (req, res) => {
+  try {
+    const contacts = await prisma.contact.findMany({
+      orderBy: { createdAt: 'desc' },
+    })
+    res.json({ contacts })
+  } catch (error) {
+    console.error('Get contacts error:', error)
+    res.status(500).json({ message: 'An error occurred' })
+  }
+})
+
+// POST /api/contact - Create contact form submission
 app.post('/api/contact', async (req, res) => {
   try {
     const { name, email, phone, subject, message } = req.body
@@ -268,6 +365,182 @@ app.post('/api/contact', async (req, res) => {
   } catch (error) {
     console.error('Create contact error:', error)
     res.status(500).json({ message: 'An error occurred' })
+  }
+})
+
+// DELETE /api/contact/:id - Delete a contact message (admin only)
+app.delete('/api/contact/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+
+    if (!id) {
+      return res.status(400).json({ message: 'Invalid contact ID' })
+    }
+
+    // Check if contact exists
+    const contact = await prisma.contact.findUnique({
+      where: { id },
+    })
+
+    if (!contact) {
+      return res.status(404).json({ message: 'Contact not found' })
+    }
+
+    // Delete the contact
+    await prisma.contact.delete({
+      where: { id },
+    })
+
+    res.json({ message: 'Contact deleted successfully' })
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Contact not found' })
+    }
+    console.error('Delete contact error:', error)
+    res.status(500).json({ message: 'An error occurred' })
+  }
+})
+
+// Email routes
+// GET /api/email - Get all sent emails (admin only)
+app.get('/api/email', authenticateAdmin, async (req, res) => {
+  try {
+    const emails = await prisma.email.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100, // Limit to last 100 emails
+    })
+    res.json({ emails })
+  } catch (error) {
+    console.error('Get emails error:', error)
+    res.status(500).json({ message: 'An error occurred' })
+  }
+})
+
+// POST /api/email/send - Send email (admin only)
+app.post('/api/email/send', authenticateAdmin, async (req, res) => {
+  try {
+    const { to, subject, html, text, replyTo, cc, bcc } = req.body
+
+    // Input validation
+    if (!to || !subject || (!html && !text)) {
+      return res.status(400).json({ message: 'Missing required fields: to, subject, and html or text' })
+    }
+
+    // Validate email format and prevent injection
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const recipients = Array.isArray(to) ? to : [to]
+    
+    // Limit number of recipients (prevent spam)
+    if (recipients.length > 50) {
+      return res.status(400).json({ message: 'Too many recipients. Maximum 50 allowed.' })
+    }
+    
+    for (const email of recipients) {
+      const trimmedEmail = email.trim()
+      if (!emailRegex.test(trimmedEmail)) {
+        return res.status(400).json({ message: `Invalid email address: ${trimmedEmail}` })
+      }
+      // Prevent email injection attacks
+      if (trimmedEmail.includes('\n') || trimmedEmail.includes('\r') || trimmedEmail.includes('%0a')) {
+        return res.status(400).json({ message: 'Invalid email format detected' })
+      }
+    }
+
+    // Validate subject length and content
+    const sanitizedSubject = subject.trim().substring(0, 200)
+    if (sanitizedSubject.length === 0) {
+      return res.status(400).json({ message: 'Subject cannot be empty' })
+    }
+
+    // Sanitize HTML content (basic checks)
+    const emailContent = html || text || ''
+    if (emailContent.length > 100000) {
+      return res.status(400).json({ message: 'Email content too long (max 100KB)' })
+    }
+    if (emailContent.length < 10) {
+      return res.status(400).json({ message: 'Email content too short' })
+    }
+
+    // Validate CC and BCC if provided
+    if (cc) {
+      const ccRecipients = Array.isArray(cc) ? cc : [cc]
+      for (const email of ccRecipients) {
+        const trimmedEmail = email.trim()
+        if (trimmedEmail && !emailRegex.test(trimmedEmail)) {
+          return res.status(400).json({ message: `Invalid CC email address: ${trimmedEmail}` })
+        }
+      }
+    }
+
+    if (bcc) {
+      const bccRecipients = Array.isArray(bcc) ? bcc : [bcc]
+      for (const email of bccRecipients) {
+        const trimmedEmail = email.trim()
+        if (trimmedEmail && !emailRegex.test(trimmedEmail)) {
+          return res.status(400).json({ message: `Invalid BCC email address: ${trimmedEmail}` })
+        }
+      }
+    }
+
+    // Send email
+    const result = await sendEmail({
+      to: recipients.map(e => e.trim()),
+      subject: sanitizedSubject,
+      html: html || text?.replace(/\n/g, '<br>') || '',
+      text: text || html?.replace(/<[^>]*>/g, '') || '',
+      replyTo: replyTo ? replyTo.trim() : undefined,
+      cc: cc ? (Array.isArray(cc) ? cc.map(e => e.trim()) : [cc.trim()]) : undefined,
+      bcc: bcc ? (Array.isArray(bcc) ? bcc.map(e => e.trim()) : [bcc.trim()]) : undefined,
+    })
+
+    // Store sent email in database
+    try {
+      await prisma.email.create({
+        data: {
+          to: Array.isArray(to) ? to.join(', ') : to,
+          subject: sanitizedSubject,
+          html: html || text?.replace(/\n/g, '<br>') || '',
+          text: text || html?.replace(/<[^>]*>/g, '') || '',
+          sentBy: req.user!.userId,
+          status: result.success ? 'SENT' : 'FAILED',
+          messageId: result.messageId || null,
+        },
+      })
+    } catch (dbError) {
+      console.error('Failed to store email in database:', dbError)
+      // Don't fail the request if database storage fails
+    }
+
+    if (result.success) {
+      res.json({
+        success: true,
+        messageId: result.messageId,
+        message: 'Email sent successfully',
+      })
+    } else {
+      res.status(500).json({ message: 'Failed to send email' })
+    }
+  } catch (error) {
+    console.error('Send email error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send email'
+    
+    // Try to store failed email in database
+    try {
+      await prisma.email.create({
+        data: {
+          to: Array.isArray(req.body.to) ? req.body.to.join(', ') : req.body.to,
+          subject: req.body.subject || 'Failed to send',
+          html: req.body.html || req.body.text || '',
+          text: req.body.text || req.body.html?.replace(/<[^>]*>/g, '') || '',
+          sentBy: req.user!.userId,
+          status: 'FAILED',
+        },
+      })
+    } catch (dbError) {
+      console.error('Failed to store failed email in database:', dbError)
+    }
+    
+    res.status(500).json({ message: errorMessage })
   }
 })
 
