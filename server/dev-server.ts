@@ -239,6 +239,39 @@ app.patch('/api/bookings/:id', async (req, res) => {
   }
 })
 
+// DELETE /api/bookings/:id - Delete a booking (admin only)
+app.delete('/api/bookings/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+
+    if (!id) {
+      return res.status(400).json({ message: 'Invalid booking ID' })
+    }
+
+    // Check if booking exists
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+    })
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' })
+    }
+
+    // Delete the booking
+    await prisma.booking.delete({
+      where: { id },
+    })
+
+    res.json({ message: 'Booking deleted successfully' })
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Booking not found' })
+    }
+    console.error('Delete booking error:', error)
+    res.status(500).json({ message: 'An error occurred' })
+  }
+})
+
 // Email sending function using Resend API
 async function sendEmail(data: {
   to: string | string[]

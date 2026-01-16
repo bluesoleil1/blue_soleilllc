@@ -235,6 +235,19 @@ export default function Admin() {
     }
   }
 
+  const deleteBooking = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this booking?')) {
+      return
+    }
+
+    try {
+      await bookingApi.delete(id)
+      await loadBookings()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete booking')
+    }
+  }
+
   const viewContact = (contact: Contact) => {
     setSelectedContact(contact)
     setShowModal(true)
@@ -501,6 +514,13 @@ export default function Admin() {
                                 <CheckCircle className="w-5 h-5" />
                               </button>
                             )}
+                            <button
+                              onClick={() => deleteBooking(booking.id)}
+                              className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors transform hover:scale-110"
+                              title="Delete Booking"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
                           </div>
                         </td>
                       </tr>

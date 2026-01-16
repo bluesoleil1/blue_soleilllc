@@ -74,6 +74,11 @@ export const bookingApi = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  delete: (id: string) =>
+    apiRequest<{ message: string }>(`/bookings/${id}`, {
+      method: 'DELETE',
+    }),
 }
 
 // Contact API
