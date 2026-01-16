@@ -27,46 +27,13 @@ async function verifyAdmin(req: VercelRequest): Promise<{ userId: string; role: 
 }
 
 // PATCH /api/bookings/[id] - Update booking status (admin only)
-// DELETE /api/bookings/[id] - Delete booking (admin only)
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Handle DELETE method
-  if (req.method === 'DELETE') {
-    try {
-      const admin = await verifyAdmin(req)
-      if (!admin) {
-        return res.status(401).json({ message: 'Unauthorized' })
-      }
-
-      const { id } = req.query
-
-      if (!id || typeof id !== 'string') {
-        return res.status(400).json({ message: 'Invalid booking ID' })
-      }
-
-      // Check if booking exists
-      const booking = await prisma.booking.findUnique({
-        where: { id },
-      })
-
-      if (!booking) {
-        return res.status(404).json({ message: 'Booking not found' })
-      }
-
-      // Delete the booking
-      await prisma.booking.delete({
-        where: { id },
-      })
-
-      return res.status(200).json({ message: 'Booking deleted successfully' })
-    } catch (error) {
-      console.error('Delete booking error:', error)
-      if ((error as any).code === 'P2025') {
-        return res.status(404).json({ message: 'Booking not found' })
-      }
-      return res.status(500).json({ message: 'An error occurred' })
-    } finally {
-      await prisma.$disconnect()
-    }
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'PATCH, OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return res.status(200).end()
   }
 
   // Handle PATCH method
