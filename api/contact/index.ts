@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import nodemailer from 'nodemailer'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 // Email service - inline implementation for Vercel serverless
@@ -71,6 +72,44 @@ async function sendContactEmail(data: {
         </body>
       </html>
     `
+
+    // Try SMTP first (preferred method)
+    const smtpHost = process.env.SMTP_HOST
+    const smtpUser = process.env.SMTP_USER
+    const smtpPass = process.env.SMTP_PASS
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587')
+
+    if (smtpHost && smtpUser && smtpPass) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465, // true for 465, false for other ports
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+        })
+
+        await transporter.sendMail({
+          from: emailFrom,
+          to: notificationEmail,
+          subject: `New Contact: ${data.subject}`,
+          html,
+          replyTo: data.email,
+        })
+
+        return { success: true }
+      } catch (error) {
+        console.error('SMTP error:', error)
+        // Fall through to Resend API fallback
+      }
+    }
+
+    // Fallback to Resend API if SMTP fails or is not configured
+    if (!resendApiKey) {
+      throw new Error('Email service not configured. Please set SMTP credentials or RESEND_API_KEY.')
+    }
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',

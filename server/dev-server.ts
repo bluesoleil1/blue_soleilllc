@@ -8,6 +8,7 @@ import cors from 'cors'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import nodemailer from 'nodemailer'
 
 // Extend Request type to include user property
 declare global {
@@ -260,6 +261,48 @@ async function sendEmail(data: {
     return { success: false, messageId: null }
   }
 
+  // Try SMTP first (preferred method)
+  const smtpHost = process.env.SMTP_HOST
+  const smtpUser = process.env.SMTP_USER
+  const smtpPass = process.env.SMTP_PASS
+  const smtpPort = parseInt(process.env.SMTP_PORT || '587')
+
+  if (smtpHost && smtpUser && smtpPass) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465, // true for 465, false for other ports
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      })
+
+      const recipients = Array.isArray(data.to) ? data.to : [data.to]
+      const info = await transporter.sendMail({
+        from: emailFrom,
+        to: recipients,
+        subject: data.subject,
+        html: data.html,
+        text: data.text || data.html.replace(/<[^>]*>/g, ''),
+        replyTo: data.replyTo || replyTo,
+        cc: data.cc ? (Array.isArray(data.cc) ? data.cc : [data.cc]) : undefined,
+        bcc: data.bcc ? (Array.isArray(data.bcc) ? data.bcc : [data.bcc]) : undefined,
+      })
+
+      return { success: true, messageId: info.messageId }
+    } catch (error) {
+      console.error('SMTP error:', error)
+      // Fall through to Resend API fallback
+    }
+  }
+
+  // Fallback to Resend API if SMTP fails or is not configured
+  if (!resendApiKey) {
+    throw new Error('Email service not configured. Please set SMTP credentials or RESEND_API_KEY.')
+  }
+
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -308,7 +351,13 @@ const authenticateAdmin = (req: express.Request, res: express.Response, next: ex
       return res.status(403).json({ message: 'Forbidden: Admin access required' })
     }
 
-    req.user = decoded
+    // Fix: ensure decoded includes email since req.user expects { userId, email, role }
+    const { userId, role, email } = decoded as { userId: string; role: string; email: string }
+    if (!email) {
+      return res.status(401).json({ message: 'Invalid or expired token: email missing' })
+    }
+
+    req.user = { userId, role, email }
     next()
   } catch (error) {
     return res.status(401).json({ message: 'Invalid or expired token' })

@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import nodemailer from 'nodemailer'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const prisma = new PrismaClient()
@@ -26,7 +27,7 @@ async function verifyAdmin(req: VercelRequest): Promise<{ userId: string; role: 
   }
 }
 
-// Send email using Resend API or SMTP
+// Send email using SMTP (Nodemailer) or Resend API as fallback
 async function sendEmail(data: {
   to: string | string[]
   subject: string
@@ -38,9 +39,46 @@ async function sendEmail(data: {
 }) {
   const emailFrom = process.env.EMAIL_FROM || 'Blue Soleil LLC <info@bluesoleilfl.com>'
   const replyTo = process.env.EMAIL_REPLY_TO || 'info@bluesoleilfl.com'
-  const resendApiKey = process.env.RESEND_API_KEY
+  
+  // Try SMTP first (preferred method)
+  const smtpHost = process.env.SMTP_HOST
+  const smtpUser = process.env.SMTP_USER
+  const smtpPass = process.env.SMTP_PASS
+  const smtpPort = parseInt(process.env.SMTP_PORT || '587')
 
-  // Use Resend if available, otherwise use SMTP
+  if (smtpHost && smtpUser && smtpPass) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465, // true for 465, false for other ports
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      })
+
+      const recipients = Array.isArray(data.to) ? data.to : [data.to]
+      const info = await transporter.sendMail({
+        from: emailFrom,
+        to: recipients,
+        subject: data.subject,
+        html: data.html,
+        text: data.text || data.html.replace(/<[^>]*>/g, ''),
+        replyTo: data.replyTo || replyTo,
+        cc: data.cc ? (Array.isArray(data.cc) ? data.cc : [data.cc]) : undefined,
+        bcc: data.bcc ? (Array.isArray(data.bcc) ? data.bcc : [data.bcc]) : undefined,
+      })
+
+      return { success: true, messageId: info.messageId }
+    } catch (error) {
+      console.error('SMTP error:', error)
+      // Fall through to Resend API fallback
+    }
+  }
+
+  // Fallback to Resend API if SMTP fails or is not configured
+  const resendApiKey = process.env.RESEND_API_KEY
   if (resendApiKey) {
     try {
       const response = await fetch('https://api.resend.com/emails', {
@@ -72,10 +110,9 @@ async function sendEmail(data: {
       console.error('Resend API error:', error)
       throw error
     }
-  } else {
-    // Fallback: Could implement SMTP here if needed
-    throw new Error('Email service not configured. Please set RESEND_API_KEY.')
   }
+
+  throw new Error('Email service not configured. Please set SMTP credentials or RESEND_API_KEY.')
 }
 
 // POST /api/email/send - Send email (admin only)
